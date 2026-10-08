@@ -1,0 +1,63 @@
+# StageLens 預設參數。CLI 參數會覆寫對應欄位；任意欄位可用 --set framing.dead_xy=0.08 覆寫。
+input: null
+output: null
+view: output            # output | split | debug
+debug: false            # 畫骨架、框、裁切窗、FPS/延遲
+show: true              # 開視窗即時預覽（無螢幕環境會自動關閉）
+backend: cpu            # cpu | cuda | hailo
+output_size: [1920, 1080]
+detect_every: 2         # 每幾幀跑一次姿態
+infer_long_side: 960    # 推論前把長邊縮到這個值（0 = 不縮）
+max_frames: null        # 只處理前 N 幀（測試用）
+timings_csv: out/timings.csv
+
+detection:
+  model: rtmpose        # rtmpose（YOLOX + RTMPose 兩階段）| rtmo（單階段，延遲與人數無關）
+  mode: balanced        # lightweight | balanced | performance
+  models_dir: models    # scripts/download_models.py 的下載位置（相對於 repo 根目錄）
+
+tracker:
+  iou_thr: 0.3
+  max_age: 15           # 連續幾次偵測沒配對到就刪除 track
+
+camera:                 # 只在 --input 為攝影機 index 時使用
+  width: 1920
+  height: 1080
+  fps: 30               # 攝影機回報的 FPS 不可靠時以此為準
+  fourcc: MJPG
+
+framing:
+  aspect: null          # null = 由 output_size 推算
+  zoom_max: 2.5
+  smooth: 0.15
+  zoom_out_boost: 3.0
+  dead_xy: 0.05
+  dead_zoom: 0.08
+  max_pan: 0.02         # 每幀最多移動畫面寬度的 2%
+  max_zoom: 0.015
+  accel_ratio: 0.15
+  hold_frames: 30
+  burst_window_s: 0.7   # 大動作放寬的時間窗
+  min_person_h: 0.08    # 人物框高度至少佔畫面高度的比例
+  spread_full: 0.8      # 人物聯集寬度超過畫面此比例時直接給全景
+  pad_top: 0.15
+  pad_bottom: 0.08
+  pad_side: 0.15
+  interp: cubic         # linear | cubic（放大時的插值）
+
+lighting:
+  enabled: true
+  highlight_thr: 0.92
+  knee: 0.70
+  compress: 0.5
+  clahe_clip: 1.5
+  clahe_tiles: 4
+  detail: 0.5           # CLAHE 局部對比（高頻）加回的比例：0 = 只壓高光、1 = 完整 CLAHE 細節
+  strength_ema: 0.1
+  feather: 0.15         # 遮罩羽化 sigma = 臉寬 × feather
+  min_face_px: 8        # 臉寬小於此像素數不處理
+
+encoder:
+  crf: 18
+  preset: veryfast      # 影片檔模式可改 medium 換取較小檔案
+  ffmpeg: null          # ffmpeg 執行檔路徑；null = PATH → imageio-ffmpeg → OpenCV（無聲）

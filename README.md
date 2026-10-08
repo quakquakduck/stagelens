@@ -199,8 +199,12 @@ stagelens/
 ├── README.md
 ├── LICENSE
 ├── requirements.txt
+├── configs/
+│   └── default.yaml          # all tunable parameters (CLI flags override)
 ├── scripts/
-│   └── download_models.py
+│   ├── download_models.py    # pre-fetch ONNX weights into models/
+│   ├── benchmark.py          # per-stage timings + quality metrics → CSV / JSON / Markdown
+│   └── mux_audio.sh          # re-attach the original audio track (fallback)
 ├── docs/
 │   ├── architecture.png
 │   ├── pipeline.md
@@ -208,12 +212,18 @@ stagelens/
 │   ├── benchmarks.md
 │   └── roadmap.md
 ├── src/
-│   ├── capture/
-│   ├── detection/
-│   ├── framing/
-│   ├── lighting/
-│   ├── overlay/
-│   └── main.py
+│   ├── main.py               # CLI entry point
+│   ├── pipeline.py           # per-frame pipeline shared by main.py and benchmark.py
+│   ├── config.py             # YAML + CLI merge
+│   ├── datatypes.py          # Person / FrameResult dataclasses
+│   ├── capture/              # video file / camera source
+│   ├── detection/            # pose backends (rtmlib cpu/cuda, Hailo stub) + IoU tracker
+│   ├── framing/              # target crop, virtual camera, sub-pixel crop & upscale
+│   ├── lighting/             # keypoint face masks + highlight restoration
+│   ├── overlay/              # debug layers, split / debug views
+│   ├── output/               # ffmpeg writer (H.264 + original audio)
+│   └── utils/                # stage timer, quality metrics
+├── tests/                    # pytest, no models or GPU needed
 ├── hardware/
 │   ├── setup.md
 │   └── ugen300_port.md

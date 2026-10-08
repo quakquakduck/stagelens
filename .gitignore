@@ -218,3 +218,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# StageLens
+models/
+out/
+*.mp4
+# 示範影片若要入庫才保留下一行（大檔請用 Git LFS）
+!samples/*.mp4
+
+conversation_2026-10-08.md
+stagelens/IMPLEMENTATION_GUIDE.md

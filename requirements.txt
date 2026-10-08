@@ -1,0 +1,8 @@
+numpy>=1.24
+opencv-python>=4.8
+onnxruntime>=1.17          # GPU 使用者改裝 onnxruntime-gpu（兩者不可同時安裝）
+rtmlib>=0.0.13
+pyyaml>=6.0
+tqdm>=4.66
+imageio-ffmpeg>=0.4.9      # 系統找不到 ffmpeg 時使用其內附的執行檔
+pytest>=8.0
