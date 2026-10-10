@@ -223,8 +223,9 @@ __marimo__/
 models/
 out/
 *.mp4
-# 示範影片若要入庫才保留下一行（大檔請用 Git LFS）
-!samples/*.mp4
+# 範例影片來自下載的表演影片（有授權疑慮、檔案大），不入庫；說明見 samples/README.md
+samples/*.mp4
 
 conversation_2026-10-08.md
 stagelens/IMPLEMENTATION_GUIDE.md
+IMPLEMENTATION_GUIDE.md
