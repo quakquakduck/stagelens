@@ -2,10 +2,12 @@
 
 > One fixed camera + one edge AI accelerator → near-professional stage footage, in real time, with no camera operator and no cloud.
 
-<!-- TODO: replace with a before/after GIF (left: raw footage, right: StageLens output) -->
 ![StageLens before/after](assets/before_after.gif)
 
-**Demo video:** <!-- TODO: YouTube link (set to "Unlisted / anyone with the link") -->
+*Left: raw fixed-camera footage. Right: StageLens output. Same clip, no operator.*
+
+**Demo video:** [https://youtu.be/A79SVF0easU](https://youtu.be/A79SVF0easU)
+**Slides:** [`docs/presentation/`](docs/presentation/) · **Benchmarks:** [`docs/benchmarks.md`](docs/benchmarks.md)
 **Competition:** 2026 ASUS UGen AI League — Creator AI × Battlefield Lightning (ASUS UGen300 AI Accelerator)
 
 ---
@@ -75,9 +77,6 @@ The ASUS UGen300 (Hailo-10H, up to 40 TOPS INT4, 8 GB dedicated memory, M.2 or U
 
 ## System Architecture
 
-<!-- TODO: replace with the same diagram used in the proposal deck -->
-![Architecture](docs/architecture.png)
-
 ```
  Camera ──► Capture (HDMI/USB) ──► Host PC / mini PC
                                        │
@@ -107,7 +106,7 @@ The ASUS UGen300 (Hailo-10H, up to 40 TOPS INT4, 8 GB dedicated memory, M.2 or U
 5. `overlay` — optional debug view: skeletons, boxes, crop window, FPS, latency.
 6. `output` — write file or push stream.
 
-See [`docs/pipeline.md`](docs/pipeline.md) for details.
+The per-frame code lives in [`src/pipeline.py`](src/pipeline.py).
 
 ## Quick Start
 
@@ -160,11 +159,14 @@ python src/main.py --input samples/demo.mp4 --no-lighting
 
 | Component | Status |
 |---|---|
-| Video / camera input | <!-- TODO --> ⬜ Planned / 🟨 In progress / ✅ Done |
-| Pose estimation (PC) | <!-- TODO --> |
-| Auto-framing + smoothing | <!-- TODO --> |
-| Face lighting restoration | <!-- TODO --> |
-| Split-screen debug view | <!-- TODO --> |
+| Video file input | ✅ Done |
+| Live camera input | 🟨 Implemented, not yet tested with a camera |
+| Pose estimation (PC, CPU) | ✅ Done (YOLOX + RTMPose via rtmlib / ONNX Runtime) |
+| Pose estimation (PC, CUDA) | 🟨 Code path exists, not tested (CPU-only ONNX Runtime installed) |
+| Auto-framing + smoothing | ✅ Done, checked on 4 clips |
+| Face lighting restoration | 🟨 Implemented; effect not yet demonstrated (needs closer, over-exposed footage) |
+| Split-screen debug view | ✅ Done |
+| Unit tests | ✅ 29 passing (`pytest tests`, no models or GPU needed) |
 | UGen300 (Hailo) backend | ⬜ Stage II |
 | Multi-performer focus selection | ⬜ Stage II |
 | Live stream output (RTMP) | ⬜ Stage II |
@@ -176,21 +178,22 @@ python src/main.py --input samples/demo.mp4 --no-lighting
 
 | Platform | Input | Pipeline | FPS | End-to-end latency |
 |---|---|---|---|---|
-| <!-- TODO: e.g. laptop CPU model --> | 1080p | framing only | TBD | TBD |
-| <!-- TODO --> | 1080p | framing + lighting | TBD | TBD |
+| Intel Core i5-11320H (CPU only) | 1080p, 60 fps clips | framing + lighting (full) | 4.6 – 5.8 | 144 – 260 ms median over all frames; ~300 ms on frames that run detection |
+| Intel Core i5-11320H (CPU only) | 1080p | framing only | not measured | not measured |
 | ASUS UGen300 (Stage II) | 1080p | full pipeline | target ≥ 30 | target ≤ 100 ms |
 
-Test conditions, scripts and raw logs: [`docs/benchmarks.md`](docs/benchmarks.md).
+Test conditions and per-clip numbers: [`docs/benchmarks.md`](docs/benchmarks.md). Detection is about 95% of the per-frame time, which is the part planned for the UGen300.
 
 ## Models
 
 | Task | Model | Source | License |
 |---|---|---|---|
-| Person detection + pose | <!-- TODO: e.g. RTMPose / RTMO --> | <!-- link --> | Apache-2.0 |
-| Face detection | <!-- TODO: e.g. MediaPipe Face Detection --> | <!-- link --> | Apache-2.0 |
-| Person segmentation | <!-- TODO --> | <!-- link --> | <!-- TODO --> |
+| Person detection | YOLOX-m (HumanArt weights), ONNX | [rtmlib](https://github.com/Tau-J/rtmlib) / OpenMMLab MMPose | code: Apache-2.0 |
+| Pose (17 keypoints) | RTMPose-m (body7), ONNX | [rtmlib](https://github.com/Tau-J/rtmlib) / OpenMMLab MMPose | code: Apache-2.0 |
+| Face region | derived from pose keypoints (nose, eyes, ears), no separate model | — | — |
+| Person segmentation | not used in Stage I | — | — |
 
-We deliberately prefer permissively licensed models so StageLens can be deployed commercially. Model weights are not stored in this repository; `scripts/download_models.py` fetches them. For Stage II, models will be compiled to Hailo HEF format (see [`hardware/ugen300_port.md`](hardware/ugen300_port.md)).
+Libraries and code are permissively licensed. The pretrained weights were trained on public datasets: check the weight and dataset terms before commercial deployment. Model weights are not stored in this repository; `scripts/download_models.py` fetches them. For Stage II, models will be compiled to Hailo HEF format and run through the existing backend interface (`src/detection/hailo_backend.py` is a stub).
 
 ## Repository Structure
 
@@ -198,19 +201,9 @@ We deliberately prefer permissively licensed models so StageLens can be deployed
 stagelens/
 ├── README.md
 ├── LICENSE
-├── requirements.txt
+├── requirements.txt / pyproject.toml
 ├── configs/
 │   └── default.yaml          # all tunable parameters (CLI flags override)
-├── scripts/
-│   ├── download_models.py    # pre-fetch ONNX weights into models/
-│   ├── benchmark.py          # per-stage timings + quality metrics → CSV / JSON / Markdown
-│   └── mux_audio.sh          # re-attach the original audio track (fallback)
-├── docs/
-│   ├── architecture.png
-│   ├── pipeline.md
-│   ├── models.md
-│   ├── benchmarks.md
-│   └── roadmap.md
 ├── src/
 │   ├── main.py               # CLI entry point
 │   ├── pipeline.py           # per-frame pipeline shared by main.py and benchmark.py
@@ -223,20 +216,29 @@ stagelens/
 │   ├── overlay/              # debug layers, split / debug views
 │   ├── output/               # ffmpeg writer (H.264 + original audio)
 │   └── utils/                # stage timer, quality metrics
+├── scripts/
+│   ├── download_models.py    # pre-fetch ONNX weights into models/
+│   ├── benchmark.py          # per-stage timings + quality metrics → CSV / JSON / Markdown
+│   └── mux_audio.sh          # re-attach the original audio track (fallback)
 ├── tests/                    # pytest, no models or GPU needed
-├── hardware/
-│   ├── setup.md
-│   └── ugen300_port.md
-├── samples/
-└── assets/
+├── docs/
+│   ├── benchmarks.md         # measured numbers, test setup, what was and was not verified
+│   └── presentation/         # Stage I results slides (PDF / PPTX)
+├── assets/
+│   ├── before_after.gif      # README visual
+│   └── figures/              # before/after stills, zoom timeline, stage-time chart
+├── demo/                     # demo video (not tracked by git, see demo/README.md)
+├── samples/                  # input clips go here (not tracked, see samples/README.md)
+├── models/                   # ONNX weights, downloaded (not tracked)
+└── out/                      # run outputs and timing CSVs (not tracked)
 ```
 
 ## Roadmap
 
 **Stage I (by 2026/10/14)** — PC prototype
-- Auto-framing with smoothed virtual camera
-- Face lighting restoration
-- Split-screen demo video and proposal
+- ✅ Auto-framing with smoothed virtual camera
+- 🟨 Face lighting restoration (implemented; effect still to be demonstrated)
+- ✅ Split-screen demo video, benchmarks and proposal slides
 
 **Stage II (2026/11/6 – 12/4)** — UGen300 integration
 - Compile detection / pose / segmentation models to HEF and run on UGen300
@@ -248,20 +250,19 @@ stagelens/
 ## Responsible Use
 
 - **Restoration, not alteration.** Lighting restoration only compensates for camera exposure limits. StageLens does not change faces, bodies or performances.
-- **Consent.** Everyone appearing in the sample footage in this repository has given written consent. Users of StageLens should follow the recording policies of their venue and obtain consent from performers (or guardians of minors).
+- **Consent.** Users of StageLens should follow the recording policies of their venue and obtain consent from performers (or guardians of minors). This repository does not include performance footage.
 - **Local by default.** StageLens processes video on-device and does not upload footage anywhere.
-- Sample footage uses royalty-free music only.
+- **About the demo footage.** The clips behind the published numbers and the demo video were cut from a downloaded performance video. Its licence and the performers' consent must be confirmed before the footage or its music is redistributed; replace it with footage and music you have rights to for any public release.
 
 ## Team
 
 | Name | Role |
 |---|---|
-| <!-- TODO --> | Hardware integration, system architecture |
-| <!-- TODO --> | <!-- TODO --> |
+| Chun-Yu Wang (王淳郁) | Problem definition and system architecture; hardware integration (camera, capture card, UGen300); detection and pose pipeline; Stage II model porting to Hailo |
+| Hao-Yu Yen (顏浩宇) | Framing, lighting and output modules; benchmarking (FPS, latency, framing quality); demo video filming and editing |
 
-Contact: <!-- TODO: team email -->
+Contact: b13902063@csie.ntu.edu.tw · b13902115@csie.ntu.edu.tw
 
 ## License
 
-<!-- TODO: choose a license, e.g. Apache-2.0, and add the LICENSE file -->
 This project is licensed under the Apache License 2.0 — see [LICENSE](LICENSE). Third-party models are subject to their own licenses listed in [Models](#models).
